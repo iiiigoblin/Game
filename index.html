@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>战线推演 · 俯视角 2D 策略游戏</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">◈</div>
+      <div class="brand-text">
+        <h1>战线推演</h1>
+        <p id="mapLabel">地图抽选中…</p>
+      </div>
+    </div>
+
+    <button id="modeChip" class="mode-chip" title="点击修改模式与难度">常规推演 · 标准</button>
+
+    <div class="stat-group">
+      <div class="stat"><span id="timeLabel">剩余时间</span><strong id="timeVal">03:00</strong></div>
+      <div class="stat"><span>敌方剩余</span><strong id="enemyVal">0</strong></div>
+      <div class="stat hidden" id="civilianStat"><span>平民幸存</span><strong id="civilianVal">8 / 8</strong></div>
+      <div class="stat"><span>击杀 / 降军</span><strong id="killVal">0 / 0</strong></div>
+    </div>
+
+    <div class="energy-box">
+      <div class="energy-head"><span>作战费用</span><strong id="energyVal">12.0 / 24</strong></div>
+      <div class="energy-track"><div id="energyFill" class="energy-fill"></div></div>
+      <div id="energyRate" class="energy-rate">自然恢复 0.60 / 秒</div>
+    </div>
+
+    <div class="controls">
+      <button id="btnPause" class="btn">暂停</button>
+      <button id="btnSpeed" class="btn">1×</button>
+      <button id="btnStart" class="btn primary">开始对局</button>
+      <button id="btnRestart" class="btn ghost">换图重开</button>
+      <button id="btnSetup" class="btn ghost">开局设置</button>
+      <button id="btnHelp" class="btn ghost square" title="规则说明">?</button>
+      <button id="btnMute" class="btn ghost square" title="音效开关">♪</button>
+    </div>
+  </header>
+
+  <aside class="left panel">
+    <div class="panel-title">派遣面板<span class="panel-sub">选中 → 放置 → 画路线</span></div>
+    <div class="tabs">
+      <button class="tab active" data-tab="unit">兵种</button>
+      <button class="tab" data-tab="skill">战术</button>
+      <button class="tab" data-tab="terrain">地形</button>
+    </div>
+    <div id="cardList" class="card-list"></div>
+  </aside>
+
+  <main class="center">
+    <div id="hintBar" class="hint-bar">开局设置可切换模式与难度。部署阶段：单位只能从左侧蓝色部署带出发 → 选择兵种 → 点选出发点 → 点击添加路点；双击或按回车完成派遣。</div>
+    <div id="canvasWrap" class="canvas-wrap">
+      <canvas id="game" width="1200" height="700"></canvas>
+      <div id="overlay" class="overlay hidden">
+        <div class="overlay-card">
+          <div id="overlayTitle" class="overlay-title">对局结束</div>
+          <div id="overlayText" class="overlay-text"></div>
+          <div id="overlayStats" class="overlay-stats"></div>
+          <div class="overlay-actions">
+            <button id="btnAgain" class="btn primary">再来一局（换图）</button>
+            <button id="btnCloseOverlay" class="btn ghost">查看战场</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="bottom-bar">
+      <div id="deployList" class="deploy-list"></div>
+      <div class="route-actions">
+        <button id="btnRearm" class="btn small accent hidden">补充战斗机导弹 · 2.0 费</button>
+        <button id="btnFinishRoute" class="btn small" disabled>完成路线 (Enter)</button>
+        <button id="btnCancel" class="btn small ghost" disabled>取消 (Esc)</button>
+      </div>
+    </div>
+  </main>
+
+  <aside class="right panel">
+    <div class="panel-title">单位详情</div>
+    <div id="detail" class="detail"></div>
+    <div class="panel-title">战场态势</div>
+    <div id="situation" class="situation"></div>
+    <div class="panel-title">战场日志</div>
+    <div id="log" class="log"></div>
+  </aside>
+
+  <footer class="statusbar">
+    <span id="phaseText" class="phase-chip">部署阶段</span>
+    <span class="sep">|</span>
+    <span id="tipText">先规划，后开战。</span>
+    <span class="spacer"></span>
+    <span class="keys">左键放置 / 路点 · 双击完成 · 单击抵达单位可重划路线 · 选中单兵可在详情面板守巷 · 右键取消 · 空格暂停 · 1 / 2 调速</span>
+  </footer>
+</div>
+
+<div id="setupModal" class="modal">
+  <div class="setup-card">
+    <div class="setup-head">
+      <div>
+        <h2>开局设置</h2>
+        <p>选择本局的玩法模式、难度与地图；之后可随时点右上角「开局设置」重新选择。</p>
+      </div>
+      <button id="btnSetupCancel" class="btn ghost square hidden" title="关闭">×</button>
+    </div>
+    <div class="setup-body">
+      <h3>一、玩法模式</h3>
+      <div id="modeOptions" class="opt-grid"></div>
+      <h3>二、难度</h3>
+      <div id="diffOptions" class="opt-grid two"></div>
+      <h3>三、地形（默认随机抽选）</h3>
+      <div id="mapOptions" class="map-row"></div>
+      <div id="setupSummary" class="setup-summary"></div>
+    </div>
+    <div class="setup-foot">
+      <span class="setup-tip">提示：部署阶段单位只能从左侧蓝色部署带出发，路点可自由规划到全图。</span>
+      <button id="btnSetupStart" class="btn primary">按此设置开始部署 →</button>
+    </div>
+  </div>
+</div>
+
+<div id="helpModal" class="modal hidden">
+  <div class="modal-card">
+    <div class="modal-head"><h2>规则与操作说明</h2><button id="btnCloseHelp" class="btn ghost square">×</button></div>
+    <div class="modal-body">
+      <section>
+        <h3>一、目标与流程</h3>
+        <p>每局从 4 张预设地形中随机抽选一张，其上分布敌怪与道具。胜利条件为在 <b>180 秒</b>内清除全部敌方单位（含 BOSS）；时间耗尽即失败。战斗分为两个阶段：</p>
+        <ul>
+          <li><b>部署阶段</b>：所有单位<b>只能从战场左侧蓝色部署带出发</b>（横向 8~240），路点则可自由规划到全图任意位置。选择兵种 → 点击地图确定出发点 → 连续点击绘制折线路线 → 双击 / 回车 / 「完成路线」确认。已派遣单位可在下方列表移除并退还费用。降军只是标出情报阵亡点，不受部署带限制。</li>
+          <li><b>对局阶段</b>：单位沿路线行进，只有当敌人<b>同时「被发现」且「在攻击范围内」</b>时才停下攻击，清空这类目标后继续按原路线前进；仅在视野内但还没进射程的敌人不会让单位驻足。近战单位会在很小范围内主动贴近以进入射程。机枪手另有架设 / 收枪状态机；<b>毒气兵永不停机</b>（始终按路线推进以铺开毒雾）、<b>装甲车只有同时被不止一名非友方单位攻击时才停下</b>；自爆机器人、死灵法师、降军与空中单位按各自特性行动。仍可随时继续派遣、释放战术。</li>
+          <li><b>再次操控</b>：单位抵达路线终点后会显示金色「可重划」环，对局中<b>单击该单位</b>即可重新划一条路线，双击 / 回车确认后重新出发。</li>
+        </ul>
+      </section>
+      <section>
+        <h3>二、费用</h3>
+        <p>初始 12 费，上限 24 费；自然恢复 0.60/秒，击杀敌人额外回复（普通 1.2 / 精英 2~2.8 / BOSS 5）。士官未被发现时每人 +0.18/秒；毒气兵死亡留下的毒云期间 -0.12/秒。补给箱道具立即 +3 费。</p>
+      </section>
+      <section>
+        <h3>三、地形</h3>
+        <ul>
+          <li><b>河流</b>：范围内移速降低；喷火兵在河中无法攻击；装甲车等大体积地面单位只能停留浅滩，无法进入虚线标出的深水核心。</li>
+          <li><b>桥梁</b>：河流纵贯全场（或从边界延伸过半）时自动生成，宽度 76，刚好容纳两辆装甲车并排通过；桥面不减速。桥上有单位阵亡后，后续单位在桥上移速降低 <b>30%</b>；桥上累积一定量燃烧 / 爆炸会损毁，损毁期间大体积单位无法渡河，约 <b>14 秒</b>后自动修复并重置减速。</li>
+          <li><b>草丛</b>：不规则轮廓；单兵对内隐身，只有身处同一草丛的单位能看见；可被点燃，约 3 秒烧毁，燃烧期间隐身失效。</li>
+          <li><b>树林</b>：不规则轮廓；大体积地面单位无法通过，并遮挡视野；可燃烧约 12 秒后消失。侦察兵朝墙注视 1.5 秒可看透并通报墙后敌人。</li>
+          <li><b>坟墓</b>：每 4.5 秒生成骷髅兵，无差别攻击所有阵营；可同时存在数量随双方累计阵亡数增长，最多 6 个。</li>
+          <li><b>建筑 / 墙体</b>：仅困难难度出现，阻挡所有地面单位（空中单位可越过）并完全遮挡视线；躲在障碍后方、尚未被发现的敌人会显示为<b>半透明灰色轮廓</b>，走近（约 96 距离）才真正显形。<b>可被呼叫打击与各类爆炸破坏</b>（建筑结构强度 190、墙体 110，受损会出现裂纹与结构条）。<b>单兵可进入建筑「守巷」</b>：选中靠近建筑的己方单兵，在右侧详情面板点击「进入建筑守巷」，获得 25% 额外减伤、视野与攻击范围 +35%、不被所在建筑遮挡视线，但不可移动（也不能再重划路线）；建筑被摧毁时内部单兵直接阵亡，可在面板随时「撤出建筑」。</li>
+        </ul>
+        <p>道具：补给箱（+3 费）、医疗包（全体 +25 血）、情报终端（全图揭示 9 秒）、兴奋剂（全体攻速 +30%，9 秒）。</p>
+      </section>
+      <section>
+        <h3>四、关键机制</h3>
+        <ul>
+          <li>单兵血量统一在 100 左右，差异主要体现在<b>减伤</b>；装甲车、直升机、战斗机、BOSS 血量按体积放大。</li>
+          <li><b>地面载具碾压</b>：车身完全覆盖单兵（单兵整体进入车体轮廓）时造成持续碾压伤害；与单兵发生体积碰撞时造成一次性高额伤害，并可来回冲刺反复碾压；对体积小于自身的载具产生推挤。装甲车 / 敌方装甲车 / BOSS 均具备此能力。</li>
+          <li><b>对空限制</b>：近战 / 自爆 / 火焰类单位（侦察兵、自爆机器人、喷火兵、刀客、骷髅、感染体、血仆、吸血鬼领主）<b>无法攻击空中单位</b>——丧尸摸不到飞机；机枪、狙击等远程单位照常对空。</li>
+          <li><b>守巷</b>：己方单兵靠近建筑时，可在详情面板进入建筑守巷：+25% 减伤、视野 / 攻击范围 +35%、不被所在建筑遮挡，但完全不可移动；建筑被摧毁时内部单兵直接阵亡。</li>
+          <li>自爆机器人穿墙扫描并持续向全队通报坐标，队友即使视线被树林遮挡也可向被通报目标开火（子弹可越墙）。自爆机器人的爆炸也会破坏建筑与墙体。</li>
+          <li>直升机无论视野如何都会被 260 范围内敌人发现；被击败坠毁的冲击波<b>不分敌我</b>。</li>
+          <li>战斗机发射完 4 枚导弹后自动返航，可在出发点花 2.0 费补满再出击。</li>
+          <li>击杀数过半获得 1 个 0 费「降军」，在指定阵亡点揭示周围 340 范围内全部敌人（含隐身 / 墙后）10 秒。</li>
+          <li>死灵法师每局仅 1 个，抵达路线终点复活附近单兵尸体：四分之一血量、持续衰减、100% 攻击吸血。</li>
+          <li><b>视野与朝向</b>：所有己方单位的<b>蓝色视野 / 索敌扇形</b>与<b>橙色攻击范围环</b>全程展示，点选或悬停会加亮；敌方范围仅在悬停 / 点选时显示。单兵未遇敌时以行进方向为轴左右环视巡逻，初始朝向也不再整齐朝右；扫描类、广域视野单位与狙击手保持固定朝向。遭受攻击后视野快速转向攻击来源并保持 1 秒，若因距离不足或树林遮挡没看见对方，则仍继续前进。</li>
+          <li><b>喷火兵</b>：255 范围索敌、约 34° 窄火焰锥持续伤害，进入 104 射程后停下喷火，清空视野内目标才继续行进；火焰锥以多层渐变与流动火舌连续绘制。</li>
+        </ul>
+      </section>
+      <section>
+        <h3>五、难度与玩法模式</h3>
+        <p>开局设置界面可选择 <b>3 种模式 × 2 种难度</b>，也可指定地图或让系统随机抽选。</p>
+        <ul>
+          <li><b>常规推演</b>：180 秒内清除全部敌方单位（含 BOSS）；时间耗尽失败。</li>
+          <li><b>丧尸感染</b>：己方单兵累计有效受伤达 46 点即被感染，攻速降低 35%，12 秒后转为敌方感染体并攻击原队友；感染体的近战会加速传播，医疗包可治愈。胜利条件仍是清除全部敌方单位（含已倒戈者）。</li>
+          <li><b>吸血鬼之夜</b>：敌方自右向左推进并持续派出血仆增援；左侧 8 名平民需要保护——平民视野 150，发现敌方逼近会向反方向逃窜，只有敌方推进到部署区攻击才会遇害，其余来源的伤害一律豁免。<b>吸血鬼领主</b>：超高血量、近距高伤普攻、初始吸血 70%；内置约 30 秒冷却的「化蝠」长距突袭（飞越一切障碍，期间受伤 ×1.8 且受击减速）；未被骚扰时击杀的单兵会被转化为血仆。血量打空后化作脆弱蝠群退往右侧<b>重整</b>（期间静止不动）：每次重整最大生命 -20%、吸血率 +15%，化蝠途中血量打空则被<b>彻底消灭</b>。<b>撑到日出或中途击杀领主均获胜</b>；平民被击杀超过一半则失败。</li>
+          <li><b>困难难度</b>：敌方血量 ×2、攻速 +18%；场上出现建筑与墙体；障碍后躲藏的敌人只显示为半透明灰色轮廓，己方单位走到近前（约 96 距离）才真正显形；<b>部署区内一切单位对玩家显形</b>。呼叫打击与自爆机器人可拆掩体；侦察兵注视与降军情报仍可提前揭示敌人。视野规则与普通难度一致：<b>扇形始终跟随单位朝向，移动时以移动方向为中线</b>（巡视单兵以移动方向为轴左右环视）。</li>
+        </ul>
+      </section>
+      <section>
+        <h3>六、实现说明（简化项）</h3>
+        <p>草丛与树林以不规则多边形轮廓近似（隐身、阻挡与视线判定共用同一轮廓），河流、桥梁、建筑与墙体为矩形区域；寻路采用带切线滑动的局部避障而非全局 A*；射击为即时命中判定，子弹不与树林碰撞；火焰与毒雾只伤害敌对阵营，直升机坠毁为唯一无差别伤害；中立骷髅不计入通关条件。以上简化用于保证单页可运行与帧率稳定。</p>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script src="data.js"></script>
+<script src="engine.js"></script>
+<script src="render.js"></script>
+<script src="main.js"></script>
+</body>
+</html>
