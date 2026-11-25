@@ -1,0 +1,28 @@
+# Adds one more entry to the permission preset table.
+#
+# A patch that targets an existing row replaces that row's whole `config`, so
+# the complete table is restated here. The three shipped presets keep their
+# values unchanged; `converge` is the new entry.
+#
+# The three shipped presets deliberately carry no `name`/`description`: the
+# product labels for `read-only`, `workspace-write`, and `danger-full-access`
+# come from the interface's own locale files, and host copy would only replace
+# them with unlocalized text.
+- id: permission
+  name: '@deepseek-ai/dsh-permission-presets'
+  config:
+    presets:
+      read-only:
+        sandbox: read-only
+        approval: ask
+      workspace-write:
+        sandbox: workspace-write
+        approval: ask
+      danger-full-access:
+        sandbox: danger-full-access
+        approval: never
+      converge:
+        sandbox: danger-full-access
+        approval: ask
+        name: 产物收敛
+        description: 工作区内外自由读写，日常操作不弹审批；需要确认的操作仍会正常询问。
