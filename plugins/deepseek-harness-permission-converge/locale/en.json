@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Converge permission",
+    "description": "Adds a fourth option to the permission menu: free reads and writes inside and outside the workspace, no approval prompts for ordinary work, and the approval channel stays available when a step needs confirmation."
+  }
+}
